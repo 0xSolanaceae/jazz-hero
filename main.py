@@ -15,7 +15,13 @@ FPS = 60
 NOTE_SPEED = 600
 SPAWN_INTERVAL = 1000
 COMBO_FADE_TIME = 2000
-HIT_WINDOW = 45
+
+# Increased hit window makes it easier to register an OK hit.
+HIT_WINDOW = 60  
+
+# New timing thresholds (in pixels) for grading hits:
+PERFECT_THRESHOLD = 10   # Dead-center
+GOOD_THRESHOLD = 25      # Slightly off-center
 
 main_keys = ['a', 's', 'd']
 
@@ -64,6 +70,15 @@ RUSH_BAR_WIDTH = 40
 RUSH_BAR_HEIGHT = 300
 RUSH_BAR_X = 50
 RUSH_BAR_Y = (SCREEN_HEIGHT - RUSH_BAR_HEIGHT) // 2
+
+# Lists for active notes, particles, and hit popups
+notes = []
+particles = []
+hit_popups = []  # New list for our floating popup texts
+score = 0
+combo = 0
+last_combo_time = 0
+spawn_time = 0
 
 class Particle:
     def __init__(self, position, color):
@@ -115,12 +130,27 @@ class Note:
             
             pygame.draw.circle(surface, self.color, (int(self.pos.x), int(self.pos.y)), 20)
 
-notes = []
-particles = []
-score = 0
-combo = 0
-last_combo_time = 0
-spawn_time = 0
+class HitPopup:
+    """Floating text popup for rating hits (e.g., Perfect!, Good!, OK)."""
+    def __init__(self, text, position, color):
+        self.text = text
+        self.pos = Vector2(position)
+        self.lifetime = 1.0  # in seconds
+        self.max_lifetime = 1.0
+        self.font = pygame.font.Font(None, 36)
+        self.color = color
+
+    def update(self, dt):
+        self.lifetime -= dt
+        self.pos.y -= 30 * dt  # move upward
+
+    def draw(self, surface):
+        if self.lifetime > 0:
+            alpha = int(255 * (self.lifetime / self.max_lifetime))
+            text_surface = self.font.render(self.text, True, self.color)
+            text_surface.set_alpha(alpha)
+            rect = text_surface.get_rect(center=(self.pos.x, self.pos.y))
+            surface.blit(text_surface, rect)
 
 def create_particles(position, color):
     for _ in range(20):
@@ -136,7 +166,7 @@ def draw_track(surface):
     left_line_x = HIT_ZONE_X - circle_radius
     right_line_x = HIT_ZONE_X + circle_radius
 
-    # Make lane lines start at the rightmost yellow line (right_line_x)
+    # Draw lane lines starting from the right edge of the hit zone circles
     for y in lane_positions:
         pygame.draw.line(surface, gray_color, (right_line_x, int(y)), (SCREEN_WIDTH, int(y)), 3)
 
@@ -148,7 +178,6 @@ def draw_track(surface):
     for i, y in enumerate(lane_positions):
         circle_center = (HIT_ZONE_X, int(y))
         pygame.draw.circle(surface, lane_colors[i], circle_center, circle_radius, 5)
-
 
 def draw_ui(surface):
     score_text = pygame.font.Font(None, 48).render(f"SCORE: {score}", True, COLORS['text'])
@@ -198,7 +227,7 @@ def main():
     paused = False  # Pause flag
 
     while running:
-        dt = clock.tick(FPS) / 1000
+        dt = clock.tick(FPS) / 1000  # dt in seconds
         current_time = pygame.time.get_ticks()
 
         for event in pygame.event.get():
@@ -209,16 +238,32 @@ def main():
                     paused = not paused  # Toggle pause
                 elif not paused and event.unicode in main_keys:
                     lane = main_keys.index(event.unicode)
+                    hit_count = 0  # To offset popups if multiple hits occur
                     note_hit = False
                     for note in notes:
                         if note.lane == lane and abs(note.pos.x - HIT_ZONE_X) < HIT_WINDOW:
+                            error = abs(note.pos.x - HIT_ZONE_X)
+                            # Determine rating based on how centered the hit is
+                            if error <= PERFECT_THRESHOLD:
+                                rating = "Perfect!"
+                                grade_multiplier = 1.5
+                                popup_color = (0, 255, 0)
+                            elif error <= GOOD_THRESHOLD:
+                                rating = "Good!"
+                                grade_multiplier = 1.0
+                                popup_color = (255, 215, 0)
+                            else:
+                                rating = "OK"
+                                grade_multiplier = 0.5
+                                popup_color = (255, 255, 255)
+                            
                             note.active = False
                             base_points = 100 + combo * 10
+                            points = int(base_points * grade_multiplier)
                             if in_rush_mode:
-                                points = int(base_points * RUSH_MULTIPLIER)
+                                points = int(points * RUSH_MULTIPLIER)
                                 rush_meter = min(rush_meter + RUSH_GAIN_PER_HIT_RUSH, RUSH_MAX)
                             else:
-                                points = base_points
                                 rush_meter = min(rush_meter + RUSH_GAIN_PER_HIT_NORMAL, RUSH_MAX)
                                 if rush_meter >= RUSH_MAX:
                                     rush_meter = RUSH_MAX
@@ -228,6 +273,12 @@ def main():
                             last_combo_time = current_time
                             note_hit = True
                             create_particles((HIT_ZONE_X, note.pos.y), note.color)
+                            # Position the hit popup near the lane of the note.
+                            # If multiple notes are hit with the same key press, offset them so they don't overlap.
+                            popup_x = HIT_ZONE_X + (hit_count - 0.5) * 20
+                            popup_y = lane_positions[lane] - 30 - hit_count * 10
+                            hit_popups.append(HitPopup(rating, (popup_x, popup_y), popup_color))
+                            hit_count += 1
                     if not note_hit:
                         combo = 0
 
@@ -256,6 +307,10 @@ def main():
             particles[:] = [p for p in particles if p.lifetime > 0]
             for p in particles:
                 p.update()
+            # Update hit popups
+            hit_popups[:] = [popup for popup in hit_popups if popup.lifetime > 0]
+            for popup in hit_popups:
+                popup.update(dt)
 
         screen.fill(COLORS['background'])
         draw_track(screen)
@@ -265,6 +320,8 @@ def main():
             p.draw(screen)
         draw_ui(screen)
         draw_rush_bar(screen, rush_meter, in_rush_mode)
+        for popup in hit_popups:
+            popup.draw(screen)
 
         if paused:
             overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
