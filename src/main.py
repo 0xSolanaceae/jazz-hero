@@ -82,7 +82,7 @@ spawn_time = 0
 chord_counter = 0
 
 # --------------------------------------------------
-# Particle, Note, and HitPopup Classes
+# Particle, ShortNote, LongNote, and HitPopup Classes
 # --------------------------------------------------
 
 class Particle:
@@ -106,7 +106,7 @@ class Particle:
             pygame.draw.circle(s, (*self.color, alpha), (radius, radius), radius)
             surface.blit(s, (self.pos.x - radius, self.pos.y - radius))
 
-class Note:
+class ShortNote:
     def __init__(self, lane):
         self.lane = lane
         self.pos = Vector2(SCREEN_WIDTH + 50, lane_positions[lane])
@@ -134,6 +134,42 @@ class Note:
             glow.blit(mask, (0, 0), None, pygame.BLEND_RGBA_MULT)
             surface.blit(glow, (int(self.pos.x) - glow_size // 2, int(self.pos.y) - glow_size // 2))
             pygame.draw.circle(surface, self.color, (int(self.pos.x), int(self.pos.y)), 20)
+
+class LongNote:
+    def __init__(self, lane, length):
+        self.lane = lane
+        self.length = length  # Length in pixels
+        self.pos = Vector2(SCREEN_WIDTH + 50, lane_positions[lane])
+        self.tail_x = self.pos.x + length
+        self.color = lane_colors[lane]
+        self.active = True
+        self.held = False
+        self.completed = False
+        self.hold_progress = 0.0
+        self.start_hold_time = 0
+        self.chord_id = None
+
+    def update(self, dt):
+        # Move both head and tail
+        self.pos.x -= NOTE_SPEED * dt
+        self.tail_x -= NOTE_SPEED * dt
+        if self.tail_x < -50:
+            self.active = False
+
+    def draw(self, surface):
+        if self.active:
+            # Draw the body between head and tail
+            body_width = self.tail_x - self.pos.x
+            pygame.draw.rect(surface, self.color, (self.pos.x, self.pos.y - 20, body_width, 40))
+            # Draw head and tail circles
+            pygame.draw.circle(surface, self.color, (int(self.pos.x), int(self.pos.y)), 20)
+            pygame.draw.circle(surface, self.color, (int(self.tail_x), int(self.pos.y)), 20)
+            # Draw hold progress if the note is being held
+            if self.held:
+                progress_width = body_width * self.hold_progress
+                progress_surface = pygame.Surface((int(progress_width), 40), pygame.SRCALPHA)
+                progress_surface.fill((255, 255, 255, 128))
+                surface.blit(progress_surface, (self.pos.x, self.pos.y - 20))
 
 class HitPopup:
     """Floating text popup for rating hits (e.g., Perfect!, Good!, OK)."""
@@ -297,7 +333,7 @@ def countdown_timer():
 # --------------------------------------------------
 
 def game():
-    global score, combo, last_combo_time, spawn_time, rush_meter, in_rush_mode
+    global score, combo, last_combo_time, spawn_time, rush_meter, in_rush_mode, chord_counter
     clock = pygame.time.Clock()
     running = True
     paused = False  # Pause flag
@@ -311,6 +347,7 @@ def game():
     hit_popups.clear()
     rush_meter = 0
     in_rush_mode = False
+    chord_counter = 0
 
     countdown_timer()
     spawn_time = pygame.time.get_ticks()
@@ -331,33 +368,77 @@ def game():
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     paused = not paused
-                elif not paused and event.unicode in main_keys:
+                elif not paused:
+                    if event.unicode in main_keys:
+                        lane = main_keys.index(event.unicode)
+                        note_hit = False
+                        # First, check for short notes in this lane
+                        for note in notes:
+                            if isinstance(note, ShortNote) and note.lane == lane and not note.hit and abs(note.pos.x - HIT_ZONE_X) < HIT_WINDOW:
+                                error = abs(note.pos.x - HIT_ZONE_X)
+                                if error <= PERFECT_THRESHOLD:
+                                    rating = "Perfect!"
+                                    grade_multiplier = 1.5
+                                    popup_color = (0, 255, 0)
+                                elif error <= GOOD_THRESHOLD:
+                                    rating = "Good!"
+                                    grade_multiplier = 1.0
+                                    popup_color = (255, 215, 0)
+                                else:
+                                    rating = "OK"
+                                    grade_multiplier = 0.5
+                                    popup_color = (255, 255, 255)
+                                
+                                note.hit = True
+                                create_particles((HIT_ZONE_X, note.pos.y), note.color)
+                                hit_popups.append(HitPopup(rating, (HIT_ZONE_X, note.pos.y - 30), popup_color))
+                                base_points = 100 + combo * 10
+                                points = int(base_points * grade_multiplier)
+                                if in_rush_mode:
+                                    points = int(points * RUSH_MULTIPLIER)
+                                    rush_meter = min(rush_meter + RUSH_GAIN_PER_HIT_RUSH, RUSH_MAX)
+                                else:
+                                    rush_meter = min(rush_meter + RUSH_GAIN_PER_HIT_NORMAL, RUSH_MAX)
+                                    if rush_meter >= RUSH_MAX:
+                                        rush_meter = RUSH_MAX
+                                        in_rush_mode = True
+                                score += points
+
+                                # Handle chord logic for short notes
+                                if note.chord_id is not None:
+                                    chord_notes = [n for n in notes if n.chord_id == note.chord_id]
+                                    if all(n.hit for n in chord_notes):
+                                        for n in chord_notes:
+                                            n.active = False
+                                        combo += 1
+                                        last_combo_time = current_time
+                                else:
+                                    note.active = False
+                                    combo += 1
+                                    last_combo_time = current_time
+                                note_hit = True
+                                break  # Process only one note per keypress
+                        # If no short note was hit, check for long notes in this lane
+                        if not note_hit:
+                            for note in notes:
+                                if isinstance(note, LongNote) and note.lane == lane and not note.held and not note.completed and abs(note.pos.x - HIT_ZONE_X) < HIT_WINDOW:
+                                    note.held = True
+                                    note.start_hold_time = pygame.time.get_ticks()
+                                    create_particles((HIT_ZONE_X, note.pos.y), note.color)
+                                    hit_popups.append(HitPopup("Hold!", (HIT_ZONE_X, note.pos.y - 30), (255, 255, 255)))
+                                    note_hit = True
+                                    break
+            elif event.type == pygame.KEYUP:
+                if event.unicode in main_keys:
                     lane = main_keys.index(event.unicode)
-                    note_hit = False
+                    # Check if a long note is being held in this lane
                     for note in notes:
-                        # Only consider notes in this lane that haven’t been hit already
-                        if note.lane == lane and not note.hit and abs(note.pos.x - HIT_ZONE_X) < HIT_WINDOW:
-                            error = abs(note.pos.x - HIT_ZONE_X)
-                            if error <= PERFECT_THRESHOLD:
-                                rating = "Perfect!"
-                                grade_multiplier = 1.5
-                                popup_color = (0, 255, 0)
-                            elif error <= GOOD_THRESHOLD:
-                                rating = "Good!"
-                                grade_multiplier = 1.0
-                                popup_color = (255, 215, 0)
-                            else:
-                                rating = "OK"
-                                grade_multiplier = 0.5
-                                popup_color = (255, 255, 255)
-                            
-                            # Mark this note as hit and show effects/popups immediately
-                            note.hit = True
-                            create_particles((HIT_ZONE_X, note.pos.y), note.color)
-                            hit_popups.append(HitPopup(rating, (HIT_ZONE_X, note.pos.y - 30), popup_color))
-                            # Add score (using current combo) immediately
-                            base_points = 100 + combo * 10
-                            points = int(base_points * grade_multiplier)
+                        if isinstance(note, LongNote) and note.lane == lane and note.held and not note.completed:
+                            elapsed = pygame.time.get_ticks() - note.start_hold_time
+                            max_duration = note.length / NOTE_SPEED * 1000  # Convert to ms
+                            progress = min(elapsed / max_duration, 1.0)
+                            base_points = 200  # Base points for long notes
+                            points = int(base_points * progress)
                             if in_rush_mode:
                                 points = int(points * RUSH_MULTIPLIER)
                                 rush_meter = min(rush_meter + RUSH_GAIN_PER_HIT_RUSH, RUSH_MAX)
@@ -367,46 +448,47 @@ def game():
                                     rush_meter = RUSH_MAX
                                     in_rush_mode = True
                             score += points
-                            note_hit = True
-
-                            # Now check if this note is part of a chord.
-                            # If it is, only add combo once all notes in the chord have been hit.
-                            if note.chord_id is not None:
-                                # Get all notes sharing the same chord_id (even those already hit)
-                                chord_notes = [n for n in notes if n.chord_id == note.chord_id]
-                                if all(n.hit for n in chord_notes):
-                                    # All notes in this chord have been hit:
-                                    for n in chord_notes:
-                                        n.active = False  # Remove them so they’re no longer drawn/updated.
-                                    combo += 1
-                                    last_combo_time = current_time
+                            if progress == 1.0:
+                                rating = "Perfect!"
+                                popup_color = (0, 255, 0)
+                            elif progress >= 0.8:
+                                rating = "Good!"
+                                popup_color = (255, 215, 0)
                             else:
-                                # (For safety—should not happen since every note now has a chord_id.)
-                                note.active = False
-                                combo += 1
-                                last_combo_time = current_time
-                            break  # Process only one note per keypress
-                    if not note_hit:
-                        combo = 0
-            # Handle mouse click for exit button in pause menu
+                                rating = "OK"
+                                popup_color = (255, 255, 255)
+                            create_particles((HIT_ZONE_X, note.pos.y), note.color)
+                            hit_popups.append(HitPopup(rating, (HIT_ZONE_X, note.pos.y - 30), popup_color))
+                            combo += 1
+                            last_combo_time = pygame.time.get_ticks()
+                            note.held = False
+                            note.active = False
+                            break
             elif paused and event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 if exit_button_rect.collidepoint(event.pos):
                     running = False
 
         if not paused:
+            # Spawn new notes if enough time has passed
             if current_time - spawn_time >= SPAWN_INTERVAL:
-                # Determine how many notes to spawn simultaneously (a chord)
-                chord_count = random.choices([1, 2, 3], weights=[60, 30, 10], k=1)[0]
-                global chord_counter
-                chord_counter += 1
-                this_chord_id = chord_counter  # All notes in this spawn share the same chord_id
-                lanes_to_spawn = random.sample(range(NUM_LANES), chord_count)
-                for lane in lanes_to_spawn:
-                    new_note = Note(lane)
-                    new_note.chord_id = this_chord_id
+                # 30% chance to spawn a long note, else spawn a chord of short notes
+                if random.random() < 0.1:
+                    lane = random.randint(0, NUM_LANES - 1)
+                    length = NOTE_SPEED * 0.8  # Long note lasts 1.5 seconds
+                    new_note = LongNote(lane, length)
                     notes.append(new_note)
+                else:
+                    chord_count = random.choices([1, 2, 3], weights=[60, 30, 10], k=1)[0]
+                    chord_counter += 1
+                    this_chord_id = chord_counter  # All notes in this spawn share the same chord_id
+                    lanes_to_spawn = random.sample(range(NUM_LANES), chord_count)
+                    for lane in lanes_to_spawn:
+                        new_note = ShortNote(lane)
+                        new_note.chord_id = this_chord_id
+                        notes.append(new_note)
                 spawn_time = current_time
 
+            # Rush mode decay logic
             if in_rush_mode:
                 rush_meter -= RUSH_DECAY_RUSH * dt
                 if rush_meter <= 0:
@@ -417,16 +499,42 @@ def game():
                 if rush_meter < 0:
                     rush_meter = 0
 
+            # Update notes
             notes[:] = [note for note in notes if note.active]
             for note in notes:
                 note.update(dt)
-                if note.pos.x < HIT_ZONE_X - HIT_WINDOW and not note.hit:
-                    # If part of a chord, mark all notes in that chord as inactive.
-                    if note.chord_id is not None:
-                        chord_notes = [n for n in notes if n.chord_id == note.chord_id]
-                        for n in chord_notes:
-                            n.active = False
-                    combo = 0
+                if isinstance(note, ShortNote):
+                    if note.pos.x < HIT_ZONE_X - HIT_WINDOW and not note.hit:
+                        if note.chord_id is not None:
+                            chord_notes = [n for n in notes if n.chord_id == note.chord_id]
+                            for n in chord_notes:
+                                n.active = False
+                        combo = 0
+                elif isinstance(note, LongNote):
+                    if note.held and not note.completed:
+                        elapsed = pygame.time.get_ticks() - note.start_hold_time
+                        max_duration = note.length / NOTE_SPEED * 1000
+                        note.hold_progress = min(elapsed / max_duration, 1.0)
+                        if note.tail_x < HIT_ZONE_X - HIT_WINDOW:
+                            # Automatically complete long note if tail passes hit zone
+                            note.completed = True
+                            note.active = False
+                            base_points = 200
+                            points = base_points
+                            if in_rush_mode:
+                                points = int(points * RUSH_MULTIPLIER)
+                                rush_meter = min(rush_meter + RUSH_GAIN_PER_HIT_RUSH, RUSH_MAX)
+                            else:
+                                rush_meter = min(rush_meter + RUSH_GAIN_PER_HIT_NORMAL, RUSH_MAX)
+                                if rush_meter >= RUSH_MAX:
+                                    rush_meter = RUSH_MAX
+                                    in_rush_mode = True
+                            score += points
+                            create_particles((HIT_ZONE_X, note.pos.y), note.color)
+                            hit_popups.append(HitPopup("Perfect!", (HIT_ZONE_X, note.pos.y - 30), (0, 255, 0)))
+                            combo += 1
+                            last_combo_time = current_time
+
             particles[:] = [p for p in particles if p.lifetime > 0]
             for p in particles:
                 p.update()

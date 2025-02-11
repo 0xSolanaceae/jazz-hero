@@ -44,7 +44,7 @@ jobs:
         
       - name: Build Executable with Nuitka
         run: |
-          python -m nuitka --standalone --onefile --output-filename=jazz-hero_arm64.app src/main.py
+          python -m nuitka --standalone --onefile --ccache=no --macos-create-app-bundle --output-filename=jazz-hero_arm64.app src/main.py
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
