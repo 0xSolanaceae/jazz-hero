@@ -132,17 +132,23 @@ def draw_track(surface):
     
     gray_color = (128, 128, 128)
     
-    for y in lane_positions:
-        pygame.draw.line(surface, gray_color, (HIT_ZONE_X, int(y)), (SCREEN_WIDTH, int(y)), 3)
-    
-    pygame.draw.line(surface, COLORS['hit_effect'],
-                     (HIT_ZONE_X, 50), (HIT_ZONE_X, SCREEN_HEIGHT - 50), 3)
-    
-    circle_offset = 0
     circle_radius = 40
+    left_line_x = HIT_ZONE_X - circle_radius
+    right_line_x = HIT_ZONE_X + circle_radius
+
+    # Make lane lines start at the rightmost yellow line (right_line_x)
+    for y in lane_positions:
+        pygame.draw.line(surface, gray_color, (right_line_x, int(y)), (SCREEN_WIDTH, int(y)), 3)
+
+    line_color = (255, 255, 0)
+    
+    pygame.draw.line(surface, line_color, (left_line_x, 50), (left_line_x, SCREEN_HEIGHT - 50), 2)
+    pygame.draw.line(surface, line_color, (right_line_x, 50), (right_line_x, SCREEN_HEIGHT - 50), 2)
+    
     for i, y in enumerate(lane_positions):
-        circle_center = (HIT_ZONE_X - circle_offset, int(y))
+        circle_center = (HIT_ZONE_X, int(y))
         pygame.draw.circle(surface, lane_colors[i], circle_center, circle_radius, 5)
+
 
 def draw_ui(surface):
     score_text = pygame.font.Font(None, 48).render(f"SCORE: {score}", True, COLORS['text'])
