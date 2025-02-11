@@ -26,7 +26,7 @@ jobs:
 
       - name: Compile with Nuitka
         run: |
-          nuitka --standalone --onefile src/main.py
+          echo Yes | nuitka --standalone --onefile src/main.py
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
