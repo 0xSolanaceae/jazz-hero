@@ -602,60 +602,129 @@ def charting_menu():
         pygame.display.flip()
         clock.tick(FPS)
 
+def draw_gradient_background(surface, top_color, bottom_color):
+    """Draw a vertical gradient over the entire surface."""
+    height = surface.get_height()
+    for y in range(height):
+        ratio = y / height
+        r = int(top_color[0] * (1 - ratio) + bottom_color[0] * ratio)
+        g = int(top_color[1] * (1 - ratio) + bottom_color[1] * ratio)
+        b = int(top_color[2] * (1 - ratio) + bottom_color[2] * ratio)
+        pygame.draw.line(surface, (r, g, b), (0, y), (surface.get_width(), y))
+
+def draw_button(surface, rect, text, font, base_color, hover_color, text_color, is_hovered):
+    """Draw a rounded rectangle button with text centered inside.
+       Changes color on hover."""
+    color = hover_color if is_hovered else base_color
+    # Draw button with rounded corners
+    pygame.draw.rect(surface, color, rect, border_radius=12)
+    # Optional border for extra style
+    pygame.draw.rect(surface, (255, 255, 255), rect, 2, border_radius=12)
+    # Render the text and center it within the button
+    text_surface = font.render(text, True, text_color)
+    text_rect = text_surface.get_rect(center=rect.center)
+    surface.blit(text_surface, text_rect)
+
+
 def main_menu():
-    """Display a modern looking main menu with clickable buttons for Play, Charting, or Exit."""
+    """Modern main menu with animated background, drop-shadow title, and interactive buttons."""
     menu_running = True
     menu_options = ["Play", "Charting", "Exit"]
     title = "Jazz Hero"
-    title_font = pygame.font.SysFont("Segoe UI", 120, bold=True)
-    menu_font = pygame.font.SysFont("Segoe UI", 50)
-    credits_font = pygame.font.SysFont("Segoe UI", 30)
+    # Choose modern, clean fonts
+    title_font = pygame.font.SysFont("Segoe UI", 100, bold=True)
+    button_font = pygame.font.SysFont("Segoe UI", 40, bold=True)
+    credits_font = pygame.font.SysFont("Segoe UI", 24)
     clock = pygame.time.Clock()
 
+    # Set up button geometry
+    button_width = 300
+    button_height = 60
+    button_spacing = 80
+    buttons = []
+    start_y = SCREEN_HEIGHT // 2
+    for i, option in enumerate(menu_options):
+        rect = pygame.Rect(0, 0, button_width, button_height)
+        rect.center = (SCREEN_WIDTH // 2, start_y + i * button_spacing)
+        buttons.append((option, rect))
+
+    # List for background particles (for a subtle dynamic effect)
+    menu_particles = []
+    particle_spawn_timer = 0
+    particle_spawn_interval = 100  # spawn a particle every 100ms
+
     while menu_running:
-        screen.fill(COLORS['background'])
-        
-        # Draw game title
-        title_text = title_font.render(title, True, COLORS['text'])
-        title_rect = title_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 4))
-        screen.blit(title_text, title_rect)
-        
-        mouse_pos = pygame.mouse.get_pos()
-        mouse_clicked = False
-        
+        clock.tick(FPS)
+        current_time = pygame.time.get_ticks()
+
+        # Process events
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
             elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                mouse_clicked = True
-        
-        # Render menu options as clickable buttons
-        for idx, option in enumerate(menu_options):
-            option_y = SCREEN_HEIGHT // 2 + idx * 60
-            option_text = menu_font.render(option, True, COLORS['text'])
-            option_rect = option_text.get_rect(center=(SCREEN_WIDTH // 2, option_y))
-            
-            # Highlight if mouse is hovering over the button
-            if option_rect.collidepoint(mouse_pos):
-                option_text = menu_font.render(option, True, (255, 215, 0))
-                if mouse_clicked:
-                    if option == "Play":
-                        menu_running = False  # Start game
-                    elif option == "Charting":
-                        charting_menu()
-                    elif option == "Exit":
-                        pygame.quit()
-                        sys.exit()
-            screen.blit(option_text, option_rect)
-        
+                mouse_pos = pygame.mouse.get_pos()
+                for option, rect in buttons:
+                    if rect.collidepoint(mouse_pos):
+                        if option == "Play":
+                            menu_running = False  # Exit the menu to start the game
+                        elif option == "Charting":
+                            charting_menu()
+                        elif option == "Exit":
+                            pygame.quit()
+                            sys.exit()
+
+        # Spawn new background particles periodically
+        if current_time - particle_spawn_timer > particle_spawn_interval:
+            particle_spawn_timer = current_time
+            # Create a particle that starts just below the screen
+            pos = Vector2(random.randint(0, SCREEN_WIDTH), SCREEN_HEIGHT - 50)
+            p = Particle(pos, (255, 255, 255))
+            # Slow, upward drift with a slight horizontal variation
+            p.velocity = Vector2(random.uniform(-0.5, 0.5), -random.uniform(0.5, 1.5))
+            p.lifetime = 300  # adjust lifetime as needed
+            p.size = random.randint(2, 4)
+            menu_particles.append(p)
+
+        # Update background particles and remove faded ones
+        for p in menu_particles[:]:
+            p.update()
+            if p.lifetime <= 0:
+                menu_particles.remove(p)
+
+        # Draw a lighter gradient background
+        draw_gradient_background(screen, (100, 100, 150), (150, 100, 180))
+
+        # Draw background particles
+        for p in menu_particles:
+            p.draw(screen)
+
+        # Draw the title with a drop shadow for extra depth
+        shadow_offset = Vector2(4, 4)
+        shadow_surface = title_font.render(title, True, (0, 0, 0))
+        shadow_rect = shadow_surface.get_rect(center=(SCREEN_WIDTH // 2 + shadow_offset.x,
+                                                       SCREEN_HEIGHT // 4 + shadow_offset.y))
+        screen.blit(shadow_surface, shadow_rect)
+        title_surface = title_font.render(title, True, (255, 255, 255))
+        title_rect = title_surface.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 4))
+        screen.blit(title_surface, title_rect)
+
+        # Draw each button with hover effects
+        mouse_pos = pygame.mouse.get_pos()
+        for option, rect in buttons:
+            hovered = rect.collidepoint(mouse_pos)
+            draw_button(screen, rect, option, button_font,
+                        base_color=(50, 50, 80),
+                        hover_color=(80, 80, 120),
+                        text_color=(255, 255, 255),
+                        is_hovered=hovered)
+
         # Draw credits at the bottom
-        credits_text = credits_font.render("Built by Us", True, COLORS['text'])
+        credits_text = credits_font.render("Built by Gio & Miles", True, (200, 200, 200))
         credits_rect = credits_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT - 30))
         screen.blit(credits_text, credits_rect)
-        
+
         pygame.display.flip()
-        clock.tick(FPS)
 
 # --------------------------------------------------
 # Main Entry Point
