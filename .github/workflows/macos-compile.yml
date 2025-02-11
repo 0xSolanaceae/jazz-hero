@@ -36,8 +36,12 @@ jobs:
           python -m pip install --upgrade pip
           pip install nuitka pygame imageio
 
+      - name: Install ccache
+        run: |
+          brew install ccache
+
       - name: Set CCACHE environment variable
-        run: echo "CCACHE=/Users/runner/Library/Caches/Nuitka/downloads/ccache/v4.2.1" >> $GITHUB_ENV
+        run: echo "CCACHE=$(which ccache)" >> $GITHUB_ENV
 
       - name: Build Executable with Nuitka
         run: |
