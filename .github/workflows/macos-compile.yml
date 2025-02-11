@@ -52,7 +52,7 @@ jobs:
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: macOS Build
+          name: jazz-hero_arm64
           path: |
             build/*.bin
             build/*.app/**
