@@ -32,7 +32,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: jazz-hero_x86_64
-          path: |
-            build/*.bin
-            build/*.app/**
+          path: main.exe
           include-hidden-files: true
