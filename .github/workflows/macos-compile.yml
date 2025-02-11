@@ -19,6 +19,17 @@ jobs:
           brew update
           brew install gettext
           brew link --force gettext
+      
+      - name: Symlink gettext to expected path
+        run: |
+          sudo mkdir -p /usr/local/opt/
+          sudo ln -s /opt/homebrew/opt/gettext /usr/local/opt/gettext
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          architecture: "x64"
 
       - name: Setup Python
         uses: actions/setup-python@v5
