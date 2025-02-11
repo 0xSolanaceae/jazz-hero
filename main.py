@@ -169,7 +169,7 @@ def main():
 
         if not paused:
             if current_time - spawn_time >= SPAWN_INTERVAL:
-                chord_count = random.randint(1, NUM_LANES)
+                chord_count = random.choices([1, 2, 3], weights=[60, 30, 10], k=1)[0] # chord_count = random.randint(1, NUM_LANES)
                 lanes_to_spawn = random.sample(range(NUM_LANES), chord_count)
                 for lane in lanes_to_spawn:
                     notes.append(Note(lane))
