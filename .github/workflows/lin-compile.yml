@@ -26,7 +26,7 @@ jobs:
 
       - name: Compile with Nuitka
         run: |
-          python -m nuitka --standalone --onefile --linux-icon=assets/music-double-note.ico --output-filename=jazz-hero_x86_64 src/main.py
+          python -m nuitka --standalone --onefile --linux-icon=assets/icon.ico --output-filename=jazz-hero_x86_64 src/main.py
       
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
