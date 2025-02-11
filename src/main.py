@@ -7,6 +7,10 @@ from pygame.math import Vector2
 pygame.init()
 pygame.mixer.init()
 
+icon = pygame.image.load('assets/icon.ico')
+
+pygame.display.set_icon(icon)
+
 SCREEN_WIDTH, SCREEN_HEIGHT = 1200, 800
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 pygame.display.set_caption("Jazz Hero")
