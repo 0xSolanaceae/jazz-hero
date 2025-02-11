@@ -10,7 +10,7 @@ pygame.mixer.init()
 # Screen setup
 SCREEN_WIDTH, SCREEN_HEIGHT = 1200, 800
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-pygame.display.set_caption("Saxophone Hero")
+pygame.display.set_caption("Jazz Hero")
 
 # Game settings
 FPS = 60
@@ -19,33 +19,42 @@ SPAWN_INTERVAL = 1000  # milliseconds
 COMBO_FADE_TIME = 2000  # milliseconds
 HIT_WINDOW = 45  # pixels
 
-# Key configuration
-main_keys = ['a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l']
-key_types = ['main', 'between', 'main', 'between', 'main', 'between', 'main', 'between', 'main']
+# Key configuration (only 3 lanes now)
+main_keys = ['a', 's', 'd']
 
 # Visual settings
 COLORS = {
     'background': (15, 15, 25),
     'track': (30, 30, 40),
-    'main_fret': (180, 180, 200),
-    'between_fret': (80, 80, 100),
     'hit_effect': (255, 200, 100),
     'text': (240, 240, 240),
     'combo': (255, 215, 0)
 }
 
-# Lane setup
-NUM_LANES = 9
-LANE_HEIGHT = 60
-LANE_SPACING = 10
-TRACK_WIDTH = SCREEN_WIDTH - 400
-HIT_ZONE_X = 350
+# Fixed colors for each lane (top, middle, bottom)
+lane_colors = [
+    (255, 255, 0),  # Yellow for top lane
+    (255, 0, 0),    # Red for middle lane
+    (0, 255, 0)     # Green for bottom lane
+]
 
-# Calculate lane positions
+# Lane setup for 3 lanes
+NUM_LANES = 3
+LANE_HEIGHT = 60
+LANE_SPACING = 80
+TRACK_WIDTH = SCREEN_WIDTH - 400
+HIT_ZONE_X = 200
+
+# Calculate lane positions (center of each lane)
+track_top = 50
+track_bottom = SCREEN_HEIGHT - 50
+track_height = track_bottom - track_top
+
 lane_positions = []
 for i in range(NUM_LANES):
-    y = 100 + i * (LANE_HEIGHT + LANE_SPACING)
-    lane_positions.append(y + LANE_HEIGHT//2)
+    lane_center_y = track_top + (i + 0.5) * (track_height / NUM_LANES)
+    lane_positions.append(lane_center_y)
+
 
 # Particle system
 class Particle:
@@ -65,17 +74,16 @@ class Particle:
         if self.lifetime > 0:
             alpha = min(self.lifetime, 255)
             radius = int(self.size)
-            s = pygame.Surface((radius*2, radius*2), pygame.SRCALPHA)
+            s = pygame.Surface((radius * 2, radius * 2), pygame.SRCALPHA)
             pygame.draw.circle(s, (*self.color, alpha), (radius, radius), radius)
             surface.blit(s, (self.pos.x - radius, self.pos.y - radius))
 
-# Note class with enhanced visuals
+# Note class with fixed colors based on lane
 class Note:
     def __init__(self, lane):
         self.lane = lane
-        self.note_type = key_types[lane]
         self.pos = Vector2(SCREEN_WIDTH + 50, lane_positions[lane])
-        self.color = (random.randint(150, 255), random.randint(100, 200), 100) if self.note_type == 'main' else (100, random.randint(150, 255), 200)
+        self.color = lane_colors[lane]
         self.active = True
 
     def update(self, dt):
@@ -85,20 +93,25 @@ class Note:
 
     def draw(self, surface):
         if self.active:
-            # Glowing core
-            pygame.draw.rect(surface, self.color, 
-                           (self.pos.x - 15, self.pos.y - 20, 30, 40))
-            
-            # Trailing glow
-            glow = pygame.Surface((60, 80), pygame.SRCALPHA)
+            # Draw trailing glow as concentric circles on a temporary surface
+            glow_size = 80
+            glow = pygame.Surface((glow_size, glow_size), pygame.SRCALPHA)
+            glow.fill((0, 0, 0, 0))
             for i in range(10):
-                alpha = 255 - i*25
-                width = 30 - i*3
-                pygame.draw.rect(glow, (*self.color, alpha), 
-                               (i*6, 20, width, 40))
-            surface.blit(glow, (self.pos.x - 15, self.pos.y - 20))
+                alpha = max(255 - i * 25, 0)
+                radius = 20 + i * 3
+                pygame.draw.circle(glow, (*self.color, alpha), (glow_size // 2, glow_size // 2), radius)
+            
+            # Create a circular mask so that the glow remains circular
+            mask = pygame.Surface((glow_size, glow_size), pygame.SRCALPHA)
+            pygame.draw.circle(mask, (255, 255, 255), (glow_size // 2, glow_size // 2), glow_size // 2)
+            glow.blit(mask, (0, 0), None, pygame.BLEND_RGBA_MULT)
+            surface.blit(glow, (int(self.pos.x) - glow_size // 2, int(self.pos.y) - glow_size // 2))
+            
+            # Draw the core (filled) circular note on top
+            pygame.draw.circle(surface, self.color, (int(self.pos.x), int(self.pos.y)), 20)
 
-# Game state
+# Game state variables
 notes = []
 particles = []
 score = 0
@@ -106,50 +119,43 @@ combo = 0
 last_combo_time = 0
 spawn_time = 0
 
-# Fonts
-font_large = pygame.font.Font(None, 72)
-font_medium = pygame.font.Font(None, 48)
-
-def create_particles(position):
+def create_particles(position, color):
+    # Create particles with the provided color
     for _ in range(20):
-        particles.append(Particle(position, COLORS['hit_effect']))
+        particles.append(Particle(position, color))
 
 def draw_track(surface):
-    # Draw track background
-    pygame.draw.rect(surface, COLORS['track'], 
-                   (HIT_ZONE_X - 50, 50, TRACK_WIDTH + 100, SCREEN_HEIGHT - 100))
+    # Draw track background starting at 150 so that it reaches SCREEN_WIDTH
+    pygame.draw.rect(surface, COLORS['track'],
+                     (150, 50, SCREEN_WIDTH - 150, SCREEN_HEIGHT - 100))
     
-    # Draw lane dividers
+    gray_color = (128, 128, 128)
+    
+    # First, draw horizontal lane lines for each lane
     for y in lane_positions:
-        pygame.draw.line(surface, (50, 50, 60), 
-                        (HIT_ZONE_X - 50, y - LANE_HEIGHT//2),
-                        (SCREEN_WIDTH, y - LANE_HEIGHT//2), 3)
+        pygame.draw.line(surface, gray_color, (HIT_ZONE_X, int(y)), (SCREEN_WIDTH, int(y)), 3)
     
-    # Draw fret markers
+    # Then, draw the vertical hit zone (yellow) line
+    pygame.draw.line(surface, COLORS['hit_effect'],
+                     (HIT_ZONE_X, 50), (HIT_ZONE_X, SCREEN_HEIGHT - 50), 3)
+    
+    # Finally, draw the circles so they appear on top of the lines
+    circle_offset = 0  # How far left of HIT_ZONE_X the circles will be drawn
+    circle_radius = 40
     for i, y in enumerate(lane_positions):
-        if key_types[i] == 'main':
-            # 3D fret effect
-            fret_color = COLORS['main_fret']
-            pygame.draw.rect(surface, fret_color,
-                           (HIT_ZONE_X - 40, y - 25, 40, 50))
-            pygame.draw.polygon(surface, (220, 220, 230),
-                               [(HIT_ZONE_X - 40, y - 25),
-                                (HIT_ZONE_X, y - 25),
-                                (HIT_ZONE_X - 20, y - 35)])
-        else:
-            pygame.draw.rect(surface, COLORS['between_fret'],
-                           (HIT_ZONE_X - 20, y - 15, 20, 30))
+        circle_center = (HIT_ZONE_X - circle_offset, int(y))
+        pygame.draw.circle(surface, lane_colors[i], circle_center, circle_radius, 5)
 
 def draw_ui(surface):
-    # Score
-    score_text = font_medium.render(f"SCORE: {score}", True, COLORS['text'])
+    # Score display
+    score_text = pygame.font.Font(None, 48).render(f"SCORE: {score}", True, COLORS['text'])
     surface.blit(score_text, (20, 20))
     
-    # Combo
+    # Combo display (fades out over COMBO_FADE_TIME)
     if pygame.time.get_ticks() - last_combo_time < COMBO_FADE_TIME:
-        alpha = 255 * (1 - (pygame.time.get_ticks() - last_combo_time)/COMBO_FADE_TIME)
-        combo_text = font_large.render(f"{combo}x COMBO!", True, (*COLORS['combo'], alpha))
-        combo_pos = combo_text.get_rect(centerx=SCREEN_WIDTH//2, y=50)
+        alpha = 255 * (1 - (pygame.time.get_ticks() - last_combo_time) / COMBO_FADE_TIME)
+        combo_text = pygame.font.Font(None, 72).render(f"{combo}x COMBO!", True, (*COLORS['combo'], int(alpha)))
+        combo_pos = combo_text.get_rect(centerx=SCREEN_WIDTH // 2, y=50)
         surface.blit(combo_text, combo_pos)
 
 def main():
@@ -162,12 +168,18 @@ def main():
         dt = clock.tick(FPS) / 1000
         current_time = pygame.time.get_ticks()
         
-        # Spawn new notes
+        # Spawn new notes periodically.
+        # Now, we can spawn a chord (multiple notes) at one time.
         if current_time - spawn_time >= SPAWN_INTERVAL:
-            notes.append(Note(random.randint(0, NUM_LANES-1)))
+            # Choose a random number of notes to spawn (between 1 and the total number of lanes)
+            chord_count = random.randint(1, NUM_LANES)
+            # Select unique lanes randomly.
+            lanes_to_spawn = random.sample(range(NUM_LANES), chord_count)
+            for lane in lanes_to_spawn:
+                notes.append(Note(lane))
             spawn_time = current_time
         
-        # Handle input
+        # Handle events and key presses
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
@@ -176,22 +188,20 @@ def main():
                     lane = main_keys.index(event.unicode)
                     note_hit = False
                     
-                    # Check notes in lane
+                    # Check for a note in the corresponding lane within the hit window
                     for note in notes:
                         if note.lane == lane and abs(note.pos.x - HIT_ZONE_X) < HIT_WINDOW:
                             note.active = False
-                            score += 100 + combo*10
+                            score += 100 + combo * 10
                             combo += 1
                             last_combo_time = current_time
                             note_hit = True
-                            create_particles((HIT_ZONE_X, note.pos.y))
+                            create_particles((HIT_ZONE_X, note.pos.y), note.color)
                     
-                    if note_hit:
-                        pass  # Add sound here
-                    else:
+                    if not note_hit:
                         combo = 0
         
-        # Update game objects
+        # Update notes and particles
         notes[:] = [note for note in notes if note.active]
         for note in notes:
             note.update(dt)
@@ -203,10 +213,6 @@ def main():
         # Draw everything
         screen.fill(COLORS['background'])
         draw_track(screen)
-        
-        # Draw hit zone effect
-        pygame.draw.line(screen, COLORS['hit_effect'], 
-                        (HIT_ZONE_X, 50), (HIT_ZONE_X, SCREEN_HEIGHT - 50), 3)
         
         for note in notes:
             note.draw(screen)
