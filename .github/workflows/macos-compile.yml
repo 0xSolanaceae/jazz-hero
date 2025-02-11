@@ -26,4 +26,4 @@ jobs:
 
       - name: Compile with Nuitka
         run: |
-          nuitka --standalone --onefile src/main.py
+          nuitka --macos-create-app-bundle --standalone --onefile src/main.py
