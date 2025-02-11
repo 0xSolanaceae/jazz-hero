@@ -7,7 +7,7 @@ from pygame.math import Vector2
 pygame.init()
 pygame.mixer.init()
 
-icon = pygame.image.load('assets/icon.ico')
+icon = pygame.image.load('assets/icon.png')
 
 pygame.display.set_icon(icon)
 
