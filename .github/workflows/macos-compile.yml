@@ -52,6 +52,5 @@ jobs:
         with:
           name: jazz-hero_arm64
           path: |
-            build/*.bin
-            build/*.app/**
+            jazz-hero_arm64.app
           include-hidden-files: true
