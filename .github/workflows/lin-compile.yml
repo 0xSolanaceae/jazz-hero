@@ -33,6 +33,5 @@ jobs:
         with:
           name: jazz-hero_linux_x86_64
           path: |
-            main.bin
-            build/*.app/**
+            jazz-hero_x86_64
           include-hidden-files: true
