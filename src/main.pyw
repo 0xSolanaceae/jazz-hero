@@ -1,3 +1,6 @@
+# cython: language_level=3
+# -*- coding: utf-8 -*-
+
 import sys
 import random
 import math
