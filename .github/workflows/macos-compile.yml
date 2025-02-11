@@ -7,23 +7,36 @@ on:
     branches: [ main ]
 
 jobs:
-  build-macos:
+  build:
     runs-on: macos-latest
 
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Setup Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v5
         with:
           python-version: "3.10"
+          architecture: "x64"
 
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
           pip install nuitka pygame
 
-      - name: Compile with Nuitka
-        run: |
-          nuitka --macos-create-app-bundle --standalone --onefile src/main.py
+      - name: Build Executable with Nuitka
+        uses: Nuitka/Nuitka-Action@main
+        with:
+          nuitka-version: main
+          script-name: src/main.py
+          mode: app
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macOS Build
+          path: |
+            build/*.bin
+            build/*.app/**
+          include-hidden-files: true
