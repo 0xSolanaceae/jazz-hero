@@ -55,14 +55,14 @@ for i in range(NUM_LANES):
     lane_positions.append(lane_center_y)
 
 # --- Rush Bar Constants and Variables ---
-RUSH_MAX = 150  # Increased maximum required for rush mode
+RUSH_MAX = 300  # Increased maximum required for rush mode
 rush_meter = 0
 in_rush_mode = False
 
 RUSH_GAIN_PER_HIT_NORMAL = 10   # Reduced gain per hit in normal mode
-RUSH_GAIN_PER_HIT_RUSH = 3      # Reduced gain during rush mode
+RUSH_GAIN_PER_HIT_RUSH = 0      # Reduced gain during rush mode
 RUSH_DECAY_NORMAL = 5           # Drains slowly when not in rush mode (per second)
-RUSH_DECAY_RUSH = 20            # Drains fast during rush mode (per second)
+RUSH_DECAY_RUSH = 25            # Drains fast during rush mode (per second)
 RUSH_MULTIPLIER = 2             # Extra multiplier on score during rush mode
 
 # Rush bar UI position and size (now on the left side)
@@ -198,33 +198,60 @@ def draw_ui(surface):
         surface.blit(combo_text, combo_pos)
 
 def draw_rush_bar(surface, rush_value, rush_active):
-    # Draw the bar background
+    # Background bar (with rounded corners)
     bar_rect = pygame.Rect(RUSH_BAR_X, RUSH_BAR_Y, RUSH_BAR_WIDTH, RUSH_BAR_HEIGHT)
-    pygame.draw.rect(surface, (50, 50, 50), bar_rect)
-    pygame.draw.rect(surface, (200, 200, 200), bar_rect, 3)
-    
-    # Calculate fill height (from bottom up)
-    fill_height = (rush_value / RUSH_MAX) * RUSH_BAR_HEIGHT
+    pygame.draw.rect(surface, (30, 30, 30), bar_rect, border_radius=10)
+    pygame.draw.rect(surface, (80, 80, 80), bar_rect, width=3, border_radius=10)
+
+    # Calculate the fill height (fill from the bottom up)
+    fill_height = int((rush_value / RUSH_MAX) * RUSH_BAR_HEIGHT)
     fill_rect = pygame.Rect(RUSH_BAR_X, RUSH_BAR_Y + RUSH_BAR_HEIGHT - fill_height, RUSH_BAR_WIDTH, fill_height)
+
+    # Create a gradient fill surface for the rush bar
+    fill_surface = pygame.Surface((RUSH_BAR_WIDTH, fill_height), pygame.SRCALPHA)
+    for y in range(fill_height):
+        if rush_active:
+            # Pulsating gradient: vary brightness using a sine function
+            pulsate = (math.sin((pygame.time.get_ticks() / 100) + (y / RUSH_BAR_HEIGHT) * math.pi) + 1) / 2
+            r = 255
+            g = int(100 + pulsate * 155)
+            b = int(100 + pulsate * 155)
+        else:
+            # Static gradient from light to dark blue
+            ratio = y / fill_height
+            r = 50
+            g = int(200 - 50 * ratio)
+            b = int(255 - 100 * ratio)
+        pygame.draw.line(fill_surface, (r, g, b), (0, y), (RUSH_BAR_WIDTH, y))
     
-    if rush_active:
-        # Create a pulsating effect using sine
-        pulsate = int((math.sin(pygame.time.get_ticks() / 100) + 1) * 50)  # 0 to 100
-        fill_color = (255, min(255, 50 + pulsate), min(255, 50 + pulsate))
-    else:
-        fill_color = (50, 150, 255)
-        
-    pygame.draw.rect(surface, fill_color, fill_rect)
+    # Blit the gradient fill onto the main surface
+    surface.blit(fill_surface, (RUSH_BAR_X, RUSH_BAR_Y + RUSH_BAR_HEIGHT - fill_height))
+    
+    # Optional: Draw a subtle inner border on the fill
+    pygame.draw.rect(surface, (255, 255, 255, 50), fill_rect, width=2, border_radius=5)
+
+    # Add an animated shine effect when in rush mode
+    if rush_active and fill_height > 0:
+        shine_height = 10
+        # The shine moves upward continuously over the fill area
+        shine_offset = (pygame.time.get_ticks() // 5) % (fill_height + shine_height) - shine_height
+        shine_rect = pygame.Rect(RUSH_BAR_X, RUSH_BAR_Y + RUSH_BAR_HEIGHT - fill_height + shine_offset, RUSH_BAR_WIDTH, shine_height)
+        shine_surface = pygame.Surface((RUSH_BAR_WIDTH, shine_height), pygame.SRCALPHA)
+        for y in range(shine_height):
+            # Create a soft white line with fading alpha at the edges
+            alpha = max(0, 150 - abs(y - shine_height // 2) * 30)
+            pygame.draw.line(shine_surface, (255, 255, 255, alpha), (0, y), (RUSH_BAR_WIDTH, y))
+        surface.blit(shine_surface, shine_rect.topleft)
     
     # Label above the bar
-    label_font = pygame.font.SysFont("Segoe UI", 24)
+    label_font = pygame.font.SysFont("Segoe UI", 24, bold=True)
     label = label_font.render("RUSH", True, (255, 255, 255))
-    label_rect = label.get_rect(center=(RUSH_BAR_X + RUSH_BAR_WIDTH // 2, RUSH_BAR_Y - 15))
+    label_rect = label.get_rect(center=(RUSH_BAR_X + RUSH_BAR_WIDTH // 2, RUSH_BAR_Y - 20))
     surface.blit(label, label_rect)
-    
-    # Optionally, display "RUSH MODE" when active
+
+    # Display "RUSH MODE!" at the top of the screen when active
     if rush_active:
-        rush_label = pygame.font.SysFont("Segoe UI", 28).render("RUSH MODE!", True, (255, 50, 50))
+        rush_label = pygame.font.SysFont("Segoe UI", 28, bold=True).render("RUSH MODE!", True, (255, 50, 50))
         rush_label_rect = rush_label.get_rect(center=(SCREEN_WIDTH // 2, 50))
         surface.blit(rush_label, rush_label_rect)
 
@@ -292,6 +319,10 @@ def game():
         dt = clock.tick(FPS) / 1000  # dt in seconds
         current_time = pygame.time.get_ticks()
 
+        # Define the exit button rect for the pause menu
+        exit_button_rect = pygame.Rect(0, 0, 200, 60)
+        exit_button_rect.center = (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 100)
+
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
@@ -357,7 +388,10 @@ def game():
                             break  # Process only one note per keypress
                     if not note_hit:
                         combo = 0
-
+            # Handle mouse click for exit button in pause menu
+            elif paused and event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                if exit_button_rect.collidepoint(event.pos):
+                    running = False
 
         if not paused:
             if current_time - spawn_time >= SPAWN_INTERVAL:
@@ -412,12 +446,24 @@ def game():
             popup.draw(screen)
 
         if paused:
+            # Draw a semi-transparent overlay
             overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
             overlay.fill((0, 0, 0, 128))
             screen.blit(overlay, (0, 0))
             pause_text = pygame.font.SysFont("Segoe UI", 72).render("PAUSED", True, (255, 255, 255))
-            text_rect = pause_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2))
+            text_rect = pause_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 - 100))
             screen.blit(pause_text, text_rect)
+
+            # Draw the Exit button
+            mouse_pos = pygame.mouse.get_pos()
+            if exit_button_rect.collidepoint(mouse_pos):
+                button_color = (255, 70, 70)
+            else:
+                button_color = (200, 50, 50)
+            pygame.draw.rect(screen, button_color, exit_button_rect)
+            exit_text = pygame.font.SysFont("Segoe UI", 36).render("Exit", True, (255, 255, 255))
+            exit_text_rect = exit_text.get_rect(center=exit_button_rect.center)
+            screen.blit(exit_text, exit_text_rect)
 
         pygame.display.flip()
 

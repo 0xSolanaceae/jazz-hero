@@ -1,0 +1,53 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+build/
+dist/
+.eggs/
+*.egg-info/
+
+# Virtual environment
+venv/
+env/
+ENV/
+*.env
+
+# Nuitka build directories and output files
+NuitkaBuild/
+.nuitka_cache/
+*.build
+
+# C/C++ generated files from Nuitka
+*.o
+*.so
+*.dll
+*.exe
+*.pdb
+*.pyd
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.coverage
+coverage.xml
+*,cover
+
+# Pytest cache directory
+.pytest_cache/
+
+# IDEs and editors
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# OS generated files
+.DS_Store
+Thumbs.db
