@@ -1,4 +1,4 @@
-name: Nuitka Compilation
+name: MacOS Compilation
 
 on:
   push:
@@ -7,8 +7,8 @@ on:
     branches: [ main ]
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
+  build-macos:
+    runs-on: macos-latest
 
     steps:
       - name: Checkout Repository
