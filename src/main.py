@@ -4,6 +4,7 @@ import math
 import pygame
 from pygame.math import Vector2
 from objects import Particle, ShortNote, LongNote, HitPopup
+from utils import create_particles, draw_gradient_background, draw_button, countdown_timer
 from config import (
     SCREEN_WIDTH, SCREEN_HEIGHT, FPS, NOTE_SPEED, SPAWN_INTERVAL, COMBO_FADE_TIME, HIT_WINDOW,
     PERFECT_THRESHOLD, GOOD_THRESHOLD, main_keys, COLORS, lane_colors, NUM_LANES, HIT_ZONE_X, lane_positions,
@@ -30,14 +31,6 @@ combo = 0
 last_combo_time = 0
 spawn_time = 0
 chord_counter = 0
-
-# --------------------------------------------------
-# Particle, ShortNote, LongNote, and HitPopup Classes
-# --------------------------------------------------
-
-def create_particles(position, color):
-    for _ in range(20):
-        particles.append(Particle(position, color))
 
 # --------------------------------------------------
 # Drawing Functions
@@ -132,43 +125,6 @@ def rush_shine(fill_height, surface):
     surface.blit(shine_surface, shine_rect.topleft)
 
 # --------------------------------------------------
-# Countdown before Game Starts
-# --------------------------------------------------
-
-def countdown_timer():
-    """Display a 3, 2, 1 countdown before the game starts."""
-    countdown_seconds = 3
-    clock = pygame.time.Clock()
-    start_ticks = pygame.time.get_ticks()
-    font_large = pygame.font.SysFont("Segoe UI", 150, bold=True)
-    
-    while True:
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                sys.exit()
-        
-        elapsed = (pygame.time.get_ticks() - start_ticks) / 1000  # seconds elapsed
-        if elapsed >= countdown_seconds:
-            break
-
-        countdown_value = countdown_seconds - int(elapsed)
-        screen.fill(COLORS['background'])
-        countdown_text = font_large.render(str(countdown_value), True, (255, 255, 255))
-        text_rect = countdown_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2))
-        screen.blit(countdown_text, text_rect)
-        
-        pygame.display.flip()
-        clock.tick(FPS)
-    
-    screen.fill(COLORS['background'])
-    go_text = font_large.render("GO!", True, (0, 255, 0))
-    go_rect = go_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2))
-    screen.blit(go_text, go_rect)
-    pygame.display.flip()
-    pygame.time.delay(500)
-
-# --------------------------------------------------
 # Game Loop (Called after the Menu)
 # --------------------------------------------------
 
@@ -189,7 +145,7 @@ def game():
     in_rush_mode = False
     chord_counter = 0
 
-    countdown_timer()
+    countdown_timer(screen, COLORS['background'])
     spawn_time = pygame.time.get_ticks()
 
     while running:
@@ -230,7 +186,7 @@ def game():
                                     popup_color = (255, 255, 255)
 
                                 note.hit = True
-                                create_particles((HIT_ZONE_X, note.pos.y), note.color)
+                                particles.extend(create_particles((HIT_ZONE_X, note.pos.y), note.color))
                                 hit_popups.append(HitPopup(rating, (HIT_ZONE_X, note.pos.y - 30), popup_color))
                                 base_points = 100 + combo * 10
                                 points = int(base_points * grade_multiplier)
@@ -264,7 +220,7 @@ def game():
                                 if isinstance(note, LongNote) and note.lane == lane and not note.held and not note.completed and abs(note.pos.x - HIT_ZONE_X) < HIT_WINDOW:
                                     note.held = True
                                     note.start_hold_time = pygame.time.get_ticks()
-                                    create_particles((HIT_ZONE_X, note.pos.y), note.color)
+                                    particles.extend(create_particles((HIT_ZONE_X, note.pos.y), note.color))
                                     hit_popups.append(HitPopup("Hold!", (HIT_ZONE_X, note.pos.y - 30), (255, 255, 255)))
                                     note_hit = True
                                     break
@@ -297,7 +253,7 @@ def game():
                             else:
                                 rating = "OK"
                                 popup_color = (255, 255, 255)
-                            create_particles((HIT_ZONE_X, note.pos.y), note.color)
+                            particles.extend(create_particles((HIT_ZONE_X, note.pos.y), note.color))
                             hit_popups.append(HitPopup(rating, (HIT_ZONE_X, note.pos.y - 30), popup_color))
                             combo += 1
                             last_combo_time = pygame.time.get_ticks()
@@ -368,7 +324,7 @@ def game():
                                     rush_meter = RUSH_MAX
                                     in_rush_mode = True
                             score += points
-                            create_particles((HIT_ZONE_X, note.pos.y), note.color)
+                            particles.extend(create_particles((HIT_ZONE_X, note.pos.y), note.color))
                             hit_popups.append(HitPopup("Perfect!", (HIT_ZONE_X, note.pos.y - 30), (0, 255, 0)))
                             combo += 1
                             last_combo_time = current_time
@@ -439,30 +395,6 @@ def charting_menu():
         
         pygame.display.flip()
         clock.tick(FPS)
-
-def draw_gradient_background(surface, top_color, bottom_color):
-    """Draw a vertical gradient over the entire surface."""
-    height = surface.get_height()
-    for y in range(height):
-        ratio = y / height
-        r = int(top_color[0] * (1 - ratio) + bottom_color[0] * ratio)
-        g = int(top_color[1] * (1 - ratio) + bottom_color[1] * ratio)
-        b = int(top_color[2] * (1 - ratio) + bottom_color[2] * ratio)
-        pygame.draw.line(surface, (r, g, b), (0, y), (surface.get_width(), y))
-
-def draw_button(surface, rect, text, font, base_color, hover_color, text_color, is_hovered):
-    """Draw a rounded rectangle button with text centered inside.
-       Changes color on hover."""
-    color = hover_color if is_hovered else base_color
-    # Draw button with rounded corners
-    pygame.draw.rect(surface, color, rect, border_radius=12)
-    # Optional border for extra style
-    pygame.draw.rect(surface, (255, 255, 255), rect, 2, border_radius=12)
-    # Render the text and center it within the button
-    text_surface = font.render(text, True, text_color)
-    text_rect = text_surface.get_rect(center=rect.center)
-    surface.blit(text_surface, text_rect)
-
 
 def main_menu():
     """Modern main menu with animated background, drop-shadow title, and interactive buttons."""
