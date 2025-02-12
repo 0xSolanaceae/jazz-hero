@@ -3,6 +3,7 @@ import random
 import math
 import pygame
 from pygame.math import Vector2
+from note_logic import NoteLogic
 from objects import Particle, ShortNote, LongNote, HitPopup
 from utils import create_particles, draw_gradient_background, draw_button, countdown_timer
 from config import (
@@ -144,6 +145,12 @@ def game():
     rush_meter = 0
     in_rush_mode = False
     chord_counter = 0
+    
+    note_generator = NoteLogic({
+        'SPAWN_INTERVAL': SPAWN_INTERVAL,
+        'NUM_LANES': NUM_LANES,
+        'NOTE_SPEED': NOTE_SPEED
+    })
 
     countdown_timer(screen, COLORS['background'])
     spawn_time = pygame.time.get_ticks()
@@ -265,24 +272,8 @@ def game():
                     running = False
 
         if not paused:
-            # Spawn new notes if enough time has passed
-            if current_time - spawn_time >= SPAWN_INTERVAL:
-                # 30% chance to spawn a long note, else spawn a chord of short notes
-                if random.random() < 0.1:
-                    lane = random.randint(0, NUM_LANES - 1)
-                    length = NOTE_SPEED * 0.8  # Long note lasts 1.5 seconds
-                    new_note = LongNote(lane, length)
-                    notes.append(new_note)
-                else:
-                    chord_count = random.choices([1, 2, 3], weights=[60, 30, 10], k=1)[0]
-                    chord_counter += 1
-                    this_chord_id = chord_counter  # All notes in this spawn share the same chord_id
-                    lanes_to_spawn = random.sample(range(NUM_LANES), chord_count)
-                    for lane in lanes_to_spawn:
-                        new_note = ShortNote(lane)
-                        new_note.chord_id = this_chord_id
-                        notes.append(new_note)
-                spawn_time = current_time
+            new_notes = note_generator.generate_notes(current_time)
+            notes.extend(new_notes)
 
             # Rush mode decay logic
             if in_rush_mode:
