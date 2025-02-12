@@ -28,3 +28,5 @@ else
     echo "Error: src/main.py not found. Make sure the script is in the correct location."
     exit 1
 fi
+
+exit

@@ -27,3 +27,5 @@ IF EXIST src\main.py (
     echo Error: src\main.py not found. Make sure the script is in the correct location.
     exit /b 1
 )
+
+exit
