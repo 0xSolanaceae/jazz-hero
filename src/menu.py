@@ -7,17 +7,17 @@ from utils import draw_gradient_background, draw_button
 from objects import Particle
 
 def charting_menu(screen):
-    """Placeholder charting menu. Press ESC to return to the main menu."""
+    """Modern charting menu with a clean, interactive design."""
     charting_running = True
-    charting_font = pygame.font.SysFont("Segoe UI", 50)
+    font = pygame.font.SysFont("Segoe UI", 50, bold=True)
     clock = pygame.time.Clock()
-    
+
     while charting_running:
         screen.fill(COLORS['background'])
-        charting_text = charting_font.render("Charting Mode Placeholder - Press ESC to return", True, COLORS['text'])
-        charting_rect = charting_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2))
-        screen.blit(charting_text, charting_rect)
-        
+        text_surface = font.render("Charting Mode - Press ESC to return", True, COLORS['text'])
+        text_rect = text_surface.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2))
+        screen.blit(text_surface, text_rect)
+
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
@@ -25,12 +25,12 @@ def charting_menu(screen):
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     charting_running = False
-        
+
         pygame.display.flip()
         clock.tick(FPS)
 
 def main_menu(screen):
-    """Modern main menu with animated background, drop-shadow title, and interactive buttons."""
+    """Visually modern main menu with smooth animations and interactivity."""
     menu_running = True
     menu_options = ["Play", "Charting", "Exit"]
     title = "Jazz Hero"
@@ -39,9 +39,7 @@ def main_menu(screen):
     credits_font = pygame.font.SysFont("Segoe UI", 24)
     clock = pygame.time.Clock()
 
-    button_width = 300
-    button_height = 60
-    button_spacing = 80
+    button_width, button_height, button_spacing = 300, 70, 90
     buttons = []
     start_y = SCREEN_HEIGHT // 2
     for i, option in enumerate(menu_options):
@@ -49,9 +47,9 @@ def main_menu(screen):
         rect.center = (SCREEN_WIDTH // 2, start_y + i * button_spacing)
         buttons.append((option, rect))
 
-    menu_particles = []
+    particles = []
     particle_spawn_timer = 0
-    particle_spawn_interval = 100  # ms
+    particle_spawn_interval = 80
 
     while menu_running:
         clock.tick(FPS)
@@ -75,20 +73,20 @@ def main_menu(screen):
 
         if current_time - particle_spawn_timer > particle_spawn_interval:
             particle_spawn_timer = current_time
-            pos = Vector2(random.randint(0, SCREEN_WIDTH), SCREEN_HEIGHT - 50)
+            pos = Vector2(random.randint(0, SCREEN_WIDTH), SCREEN_HEIGHT - 40)
             p = Particle(pos, (255, 255, 255))
-            p.velocity = Vector2(random.uniform(-0.5, 0.5), -random.uniform(0.5, 1.5))
-            p.lifetime = 300
-            p.size = random.randint(2, 4)
-            menu_particles.append(p)
+            p.velocity = Vector2(random.uniform(-1, 1), -random.uniform(0.5, 1.5))
+            p.lifetime = 800
+            p.size = random.randint(2, 5)
+            particles.append(p)
 
-        menu_particles = [p for p in menu_particles if p.lifetime > 0]
-        for p in menu_particles:
+        particles = [p for p in particles if p.lifetime > 0]
+        for p in particles:
             p.update()
 
-        draw_gradient_background(screen, (100, 100, 150), (150, 100, 180))
+        draw_gradient_background(screen, (50, 50, 100), (100, 50, 150))
 
-        for p in menu_particles:
+        for p in particles:
             p.draw(screen)
 
         shadow_offset = Vector2(4, 4)
@@ -103,8 +101,8 @@ def main_menu(screen):
         for option, rect in buttons:
             hovered = rect.collidepoint(mouse_pos)
             draw_button(screen, rect, option, button_font,
-                        base_color=(50, 50, 80),
-                        hover_color=(80, 80, 120),
+                        base_color=(40, 40, 70),
+                        hover_color=(90, 90, 140),
                         text_color=(255, 255, 255),
                         is_hovered=hovered)
 
