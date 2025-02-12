@@ -1,11 +1,10 @@
 import sys
-import random
 import math
 import pygame
-from pygame.math import Vector2
 from note_logic import NoteLogic
-from objects import Particle, ShortNote, LongNote, HitPopup
-from utils import create_particles, draw_gradient_background, draw_button, countdown_timer
+from objects import ShortNote, LongNote, HitPopup
+from utils import create_particles, countdown_timer
+from menu import main_menu
 from config import (
     SCREEN_WIDTH, SCREEN_HEIGHT, FPS, NOTE_SPEED, SPAWN_INTERVAL, COMBO_FADE_TIME, HIT_WINDOW,
     PERFECT_THRESHOLD, GOOD_THRESHOLD, main_keys, COLORS, lane_colors, NUM_LANES, HIT_ZONE_X, lane_positions,
@@ -19,14 +18,13 @@ pygame.mixer.init()
 
 icon = pygame.image.load('assets/icon.png')
 pygame.display.set_icon(icon)
-
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 pygame.display.set_caption("Jazz Hero")
 
 # Lists for active notes, particles, and hit popups
 notes = []
 particles = []
-hit_popups = []  # Floating popup texts for hits
+hit_popups = []
 score = 0
 combo = 0
 last_combo_time = 0
@@ -361,140 +359,13 @@ def game():
         pygame.display.flip()
 
 # --------------------------------------------------
-# Menu Functions
-# --------------------------------------------------
-
-def charting_menu():
-    """Placeholder charting menu. Press ESC to return to the main menu."""
-    charting_running = True
-    charting_font = pygame.font.SysFont("Segoe UI", 50)
-    clock = pygame.time.Clock()
-    
-    while charting_running:
-        screen.fill(COLORS['background'])
-        charting_text = charting_font.render("Charting Mode Placeholder - Press ESC to return", True, COLORS['text'])
-        charting_rect = charting_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2))
-        screen.blit(charting_text, charting_rect)
-        
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                sys.exit()
-            elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_ESCAPE:
-                    charting_running = False
-        
-        pygame.display.flip()
-        clock.tick(FPS)
-
-def main_menu():
-    """Modern main menu with animated background, drop-shadow title, and interactive buttons."""
-    menu_running = True
-    menu_options = ["Play", "Charting", "Exit"]
-    title = "Jazz Hero"
-    # Choose modern, clean fonts
-    title_font = pygame.font.SysFont("Segoe UI", 100, bold=True)
-    button_font = pygame.font.SysFont("Segoe UI", 40, bold=True)
-    credits_font = pygame.font.SysFont("Segoe UI", 24)
-    clock = pygame.time.Clock()
-
-    # Set up button geometry
-    button_width = 300
-    button_height = 60
-    button_spacing = 80
-    buttons = []
-    start_y = SCREEN_HEIGHT // 2
-    for i, option in enumerate(menu_options):
-        rect = pygame.Rect(0, 0, button_width, button_height)
-        rect.center = (SCREEN_WIDTH // 2, start_y + i * button_spacing)
-        buttons.append((option, rect))
-
-    # List for background particles (for a subtle dynamic effect)
-    menu_particles = []
-    particle_spawn_timer = 0
-    particle_spawn_interval = 100  # spawn a particle every 100ms
-
-    while menu_running:
-        clock.tick(FPS)
-        current_time = pygame.time.get_ticks()
-
-        # Process events
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                sys.exit()
-            elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                mouse_pos = pygame.mouse.get_pos()
-                for option, rect in buttons:
-                    if rect.collidepoint(mouse_pos):
-                        if option == "Play":
-                            menu_running = False  # Exit the menu to start the game
-                        elif option == "Charting":
-                            charting_menu()
-                        elif option == "Exit":
-                            pygame.quit()
-                            sys.exit()
-
-        # Spawn new background particles periodically
-        if current_time - particle_spawn_timer > particle_spawn_interval:
-            particle_spawn_timer = current_time
-            # Create a particle that starts just below the screen
-            pos = Vector2(random.randint(0, SCREEN_WIDTH), SCREEN_HEIGHT - 50)
-            p = Particle(pos, (255, 255, 255))
-            # Slow, upward drift with a slight horizontal variation
-            p.velocity = Vector2(random.uniform(-0.5, 0.5), -random.uniform(0.5, 1.5))
-            p.lifetime = 300  # adjust lifetime as needed
-            p.size = random.randint(2, 4)
-            menu_particles.append(p)
-
-        # Update background particles and remove faded ones
-        for p in menu_particles[:]:
-            p.update()
-            if p.lifetime <= 0:
-                menu_particles.remove(p)
-
-        # Draw a lighter gradient background
-        draw_gradient_background(screen, (100, 100, 150), (150, 100, 180))
-
-        # Draw background particles
-        for p in menu_particles:
-            p.draw(screen)
-
-        # Draw the title with a drop shadow for extra depth
-        shadow_offset = Vector2(4, 4)
-        shadow_surface = title_font.render(title, True, (0, 0, 0))
-        shadow_rect = shadow_surface.get_rect(center=(SCREEN_WIDTH // 2 + shadow_offset.x,
-                                                       SCREEN_HEIGHT // 4 + shadow_offset.y))
-        screen.blit(shadow_surface, shadow_rect)
-        title_surface = title_font.render(title, True, (255, 255, 255))
-        title_rect = title_surface.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 4))
-        screen.blit(title_surface, title_rect)
-
-        # Draw each button with hover effects
-        mouse_pos = pygame.mouse.get_pos()
-        for option, rect in buttons:
-            hovered = rect.collidepoint(mouse_pos)
-            draw_button(screen, rect, option, button_font,
-                        base_color=(50, 50, 80),
-                        hover_color=(80, 80, 120),
-                        text_color=(255, 255, 255),
-                        is_hovered=hovered)
-
-        # Draw credits at the bottom
-        credits_text = credits_font.render("Built by Gio & Miles", True, (200, 200, 200))
-        credits_rect = credits_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT - 30))
-        screen.blit(credits_text, credits_rect)
-
-        pygame.display.flip()
-
-# --------------------------------------------------
 # Main Entry Point
 # --------------------------------------------------
 
 def main():
     while True:
-        main_menu()
-        game()
+        main_menu(screen)  # Pass screen to menu
+        game()             # game() uses global screen
 
 if __name__ == "__main__":
     main()
