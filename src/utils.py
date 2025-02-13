@@ -1,5 +1,6 @@
 import pygame
 from objects import Particle
+from config import UI
 
 # --------------------------
 # Particle Creation Utility
@@ -13,24 +14,44 @@ def create_particles(position, color):
 # UI Rendering Utilities
 # --------------------------
 
-def draw_gradient_background(surface, top_color, bottom_color):
-    """Draw a vertical gradient background."""
-    height = surface.get_height()
-    for y in range(height):
-        ratio = y / height
-        r = int(top_color[0] * (1 - ratio) + bottom_color[0] * ratio)
-        g = int(top_color[1] * (1 - ratio) + bottom_color[1] * ratio)
-        b = int(top_color[2] * (1 - ratio) + bottom_color[2] * ratio)
-        pygame.draw.line(surface, (r, g, b), (0, y), (surface.get_width(), y))
-
-def draw_button(surface, rect, text, font, base_color, hover_color, text_color, is_hovered):
-    """Draw an interactive button with hover effects."""
+def draw_button(surface, rect, text, font, base_color, hover_color):
+    """Modern neomorphic button design"""
+    mouse_pos = pygame.mouse.get_pos()
+    is_hovered = rect.collidepoint(mouse_pos)
+    
+    # Shadow
+    shadow_offset = 8 if is_hovered else 5
+    shadow_surface = pygame.Surface(rect.size, pygame.SRCALPHA)
+    pygame.draw.rect(shadow_surface, (0, 0, 0, 50 if is_hovered else 30), 
+                    shadow_surface.get_rect(), border_radius=UI["button_radius"])
+    surface.blit(shadow_surface, (rect.x - shadow_offset/2, rect.y + shadow_offset/2))
+    
+    # Main button
     color = hover_color if is_hovered else base_color
-    pygame.draw.rect(surface, color, rect, border_radius=12)
-    pygame.draw.rect(surface, (255, 255, 255), rect, 2, border_radius=12)
-    text_surface = font.render(text, True, text_color)
+    pygame.draw.rect(surface, color, rect, border_radius=UI["button_radius"])
+    
+    # Inner highlight
+    highlight = pygame.Surface(rect.size, pygame.SRCALPHA)
+    pygame.draw.rect(highlight, (255, 255, 255, 30), 
+                    highlight.get_rect().inflate(-10, -10), 
+                    border_radius=UI["button_radius"]-5)
+    surface.blit(highlight, rect.topleft)
+    
+    # Text
+    text_surface = font.render(text, True, (255, 255, 255))
     text_rect = text_surface.get_rect(center=rect.center)
     surface.blit(text_surface, text_rect)
+
+def draw_gradient_background(surface, top_color, bottom_color):
+    """Diagonal gradient background"""
+    width, height = surface.get_size()
+    for x in range(width):
+        for y in range(height):
+            ratio = (x + y) / (width + height)
+            r = int(top_color[0] * (1 - ratio) + bottom_color[0] * ratio)
+            g = int(top_color[1] * (1 - ratio) + bottom_color[1] * ratio)
+            b = int(top_color[2] * (1 - ratio) + bottom_color[2] * ratio)
+            surface.set_at((x, y), (r, g, b))
 
 # --------------------------
 # Game Flow Utilities

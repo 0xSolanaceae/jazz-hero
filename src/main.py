@@ -10,7 +10,7 @@ from config import (
     PERFECT_THRESHOLD, GOOD_THRESHOLD, main_keys, COLORS, lane_colors, NUM_LANES, HIT_ZONE_X, lane_positions,
     RUSH_MAX, RUSH_GAIN_PER_HIT_NORMAL, RUSH_GAIN_PER_HIT_RUSH,
     RUSH_DECAY_NORMAL, RUSH_DECAY_RUSH, RUSH_MULTIPLIER, RUSH_BAR_WIDTH, RUSH_BAR_HEIGHT,
-    RUSH_BAR_X, RUSH_BAR_Y
+    RUSH_BAR_X, RUSH_BAR_Y, UI
 )
 
 pygame.init()
@@ -157,9 +157,11 @@ def game():
         dt = clock.tick(FPS) / 1000  # dt in seconds
         current_time = pygame.time.get_ticks()
 
-        # Define the exit button rect for the pause menu
-        exit_button_rect = pygame.Rect(0, 0, 200, 60)
-        exit_button_rect.center = (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 100)
+        # Define the button rects for the pause menu
+        play_button_rect = pygame.Rect(0, 0, *UI["button_size"])
+        play_button_rect.center = (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 - 50)
+        exit_button_rect = pygame.Rect(0, 0, *UI["button_size"])
+        exit_button_rect.center = (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 50)
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -266,7 +268,9 @@ def game():
                             note.active = False
                             break
             elif paused and event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                if exit_button_rect.collidepoint(event.pos):
+                if play_button_rect.collidepoint(event.pos):
+                    paused = False
+                elif exit_button_rect.collidepoint(event.pos):
                     running = False
 
         if not paused:
@@ -341,18 +345,28 @@ def game():
             overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
             overlay.fill((0, 0, 0, 128))
             screen.blit(overlay, (0, 0))
-            pause_text = pygame.font.SysFont("Segoe UI", 72).render("PAUSED", True, (255, 255, 255))
-            text_rect = pause_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 - 100))
+            pause_text = pygame.font.Font(UI["title_font"], 72).render("PAUSED", True, (255, 255, 255))
+            text_rect = pause_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 - 200))
             screen.blit(pause_text, text_rect)
 
-            # Draw the Exit button
+            # Define the button rects for the pause menu
+            play_button_rect = pygame.Rect(0, 0, *UI["button_size"])
+            play_button_rect.center = (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 - 20)  # Adjusted position
+            exit_button_rect = pygame.Rect(0, 0, *UI["button_size"])
+            exit_button_rect.center = (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 80)  # Adjusted position
+
+            # Draw the Play button
             mouse_pos = pygame.mouse.get_pos()
-            if exit_button_rect.collidepoint(mouse_pos):
-                button_color = (255, 70, 70)
-            else:
-                button_color = (200, 50, 50)
-            pygame.draw.rect(screen, button_color, exit_button_rect)
-            exit_text = pygame.font.SysFont("Segoe UI", 36).render("Exit", True, (255, 255, 255))
+            play_btn_color = UI["secondary_color"] if play_button_rect.collidepoint(mouse_pos) else UI["accent_color"]
+            pygame.draw.rect(screen, play_btn_color, play_button_rect, border_radius=UI["button_radius"])
+            play_text = pygame.font.Font(UI["body_font"], 36).render("Play", True, (255, 255, 255))
+            play_text_rect = play_text.get_rect(center=play_button_rect.center)
+            screen.blit(play_text, play_text_rect)
+
+            # Draw the Exit button
+            exit_btn_color = UI["secondary_color"] if exit_button_rect.collidepoint(mouse_pos) else UI["accent_color"]
+            pygame.draw.rect(screen, exit_btn_color, exit_button_rect, border_radius=UI["button_radius"])
+            exit_text = pygame.font.Font(UI["body_font"], 36).render("Exit", True, (255, 255, 255))
             exit_text_rect = exit_text.get_rect(center=exit_button_rect.center)
             screen.blit(exit_text, exit_text_rect)
 

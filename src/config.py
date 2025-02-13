@@ -15,7 +15,27 @@ GOOD_THRESHOLD = 25     # Slightly off-center
 # Main keys
 main_keys = ['a', 's', 'd']
 
-# Colors
+UI = {
+    "title_font": "assets/fonts/Lato-Bold.ttf",
+    "body_font": "assets/fonts/Lato-Regular.ttf",
+    "accent_color": (98, 102, 255),
+    "secondary_color": (255, 65, 129),
+    "glass_color": (255, 255, 255, 50),
+    "button_radius": 15,
+    "button_size": (320, 80),
+    "text_shadow": (30, 30, 30),
+    "particle_colors": [
+        (98, 102, 255),
+        (255, 65, 129),
+        (128, 0, 128)
+    ]
+}
+
+MENU_BACKGROUND = [
+    (25, 25, 40),
+    (15, 15, 30)
+]
+
 COLORS = {
     'background': (15, 15, 25),
     'track': (30, 30, 40),
