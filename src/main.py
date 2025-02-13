@@ -1,16 +1,15 @@
 import sys
-import math
 import pygame
 from note_logic import NoteLogic
 from objects import ShortNote, LongNote, HitPopup
 from utils import create_particles, countdown_timer
 from menu import main_menu, song_select_menu
+from rush_bar import draw_rush_bar
 from config import (
     SCREEN_WIDTH, SCREEN_HEIGHT, FPS, NOTE_SPEED, SPAWN_INTERVAL, COMBO_FADE_TIME, HIT_WINDOW,
     PERFECT_THRESHOLD, GOOD_THRESHOLD, main_keys, COLORS, lane_colors, NUM_LANES, HIT_ZONE_X, lane_positions,
     RUSH_MAX, RUSH_GAIN_PER_HIT_NORMAL, RUSH_GAIN_PER_HIT_RUSH,
-    RUSH_DECAY_NORMAL, RUSH_DECAY_RUSH, RUSH_MULTIPLIER, RUSH_BAR_WIDTH, RUSH_BAR_HEIGHT,
-    RUSH_BAR_X, RUSH_BAR_Y, UI
+    RUSH_DECAY_NORMAL, RUSH_DECAY_RUSH, RUSH_MULTIPLIER, UI
 )
 
 pygame.init()
@@ -66,62 +65,6 @@ def draw_ui(surface):
         combo_text = pygame.font.SysFont("Segoe UI", 48).render(f"{combo}x COMBO!", True, (*COLORS['combo'], int(alpha)))
         combo_pos = combo_text.get_rect(centerx=SCREEN_WIDTH // 2, y=50)
         surface.blit(combo_text, combo_pos)
-
-def draw_rush_bar(surface, rush_value, rush_active):
-    # Background bar (with rounded corners)
-    bar_rect = pygame.Rect(RUSH_BAR_X, RUSH_BAR_Y, RUSH_BAR_WIDTH, RUSH_BAR_HEIGHT)
-    pygame.draw.rect(surface, (30, 30, 30), bar_rect, border_radius=10)
-    pygame.draw.rect(surface, (80, 80, 80), bar_rect, width=3, border_radius=10)
-
-    # Calculate the fill height (fill from the bottom up)
-    fill_height = int((rush_value / RUSH_MAX) * RUSH_BAR_HEIGHT)
-    fill_rect = pygame.Rect(RUSH_BAR_X, RUSH_BAR_Y + RUSH_BAR_HEIGHT - fill_height, RUSH_BAR_WIDTH, fill_height)
-
-    # Create a gradient fill surface for the rush bar
-    fill_surface = pygame.Surface((RUSH_BAR_WIDTH, fill_height), pygame.SRCALPHA)
-    for y in range(fill_height):
-        if rush_active:
-            # Pulsating gradient: vary brightness using a sine function
-            pulsate = (math.sin((pygame.time.get_ticks() / 100) + (y / RUSH_BAR_HEIGHT) * math.pi) + 1) / 2
-            r = 255
-            g = int(100 + pulsate * 155)
-            b = int(100 + pulsate * 155)
-        else:
-            # Static gradient from light to dark blue
-            ratio = y / fill_height
-            r = 50
-            g = int(200 - 50 * ratio)
-            b = int(255 - 100 * ratio)
-        pygame.draw.line(fill_surface, (r, g, b), (0, y), (RUSH_BAR_WIDTH, y))
-
-    surface.blit(fill_surface, (RUSH_BAR_X, RUSH_BAR_Y + RUSH_BAR_HEIGHT - fill_height))
-
-    pygame.draw.rect(surface, (255, 255, 255, 50), fill_rect, width=2, border_radius=5)
-
-    if rush_active and fill_height > 0:
-        rush_shine(fill_height, surface)
-    label_font = pygame.font.SysFont("Segoe UI", 24, bold=True)
-    label = label_font.render("RUSH", True, (255, 255, 255))
-    label_rect = label.get_rect(center=(RUSH_BAR_X + RUSH_BAR_WIDTH // 2, RUSH_BAR_Y - 20))
-    surface.blit(label, label_rect)
-
-    # Display "RUSH MODE!" at the top of the screen when active
-    if rush_active:
-        rush_label = pygame.font.SysFont("Segoe UI", 28, bold=True).render("RUSH MODE!", True, (255, 50, 50))
-        rush_label_rect = rush_label.get_rect(center=(SCREEN_WIDTH // 2, 50))
-        surface.blit(rush_label, rush_label_rect)
-
-def rush_shine(fill_height, surface):
-    shine_height = 10
-    # The shine moves upward continuously over the fill area
-    shine_offset = (pygame.time.get_ticks() // 5) % (fill_height + shine_height) - shine_height
-    shine_rect = pygame.Rect(RUSH_BAR_X, RUSH_BAR_Y + RUSH_BAR_HEIGHT - fill_height + shine_offset, RUSH_BAR_WIDTH, shine_height)
-    shine_surface = pygame.Surface((RUSH_BAR_WIDTH, shine_height), pygame.SRCALPHA)
-    for y in range(shine_height):
-        # Create a soft white line with fading alpha at the edges
-        alpha = max(0, 150 - abs(y - shine_height // 2) * 30)
-        pygame.draw.line(shine_surface, (255, 255, 255, alpha), (0, y), (RUSH_BAR_WIDTH, y))
-    surface.blit(shine_surface, shine_rect.topleft)
 
 # --------------------------------------------------
 # Game Loop (Called after the Menu)
