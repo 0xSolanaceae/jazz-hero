@@ -4,7 +4,7 @@ import pygame
 from note_logic import NoteLogic
 from objects import ShortNote, LongNote, HitPopup
 from utils import create_particles, countdown_timer
-from menu import main_menu
+from menu import main_menu, song_select_menu
 from config import (
     SCREEN_WIDTH, SCREEN_HEIGHT, FPS, NOTE_SPEED, SPAWN_INTERVAL, COMBO_FADE_TIME, HIT_WINDOW,
     PERFECT_THRESHOLD, GOOD_THRESHOLD, main_keys, COLORS, lane_colors, NUM_LANES, HIT_ZONE_X, lane_positions,
@@ -378,8 +378,14 @@ def game():
 
 def main():
     while True:
-        main_menu(screen)  # Pass screen to menu
-        game()             # game() uses global screen
+        action = main_menu(screen)
+        if action == "play":
+            mode = song_select_menu(screen)
+            if mode == "infinite":
+                game()
+        elif action == "exit":
+            pygame.quit()
+            sys.exit()
 
 if __name__ == "__main__":
     main()

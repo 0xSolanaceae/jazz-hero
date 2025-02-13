@@ -43,15 +43,23 @@ def draw_button(surface, rect, text, font, base_color, hover_color):
     surface.blit(text_surface, text_rect)
 
 def draw_gradient_background(surface, top_color, bottom_color):
-    """Diagonal gradient background"""
-    width, height = surface.get_size()
-    for x in range(width):
-        for y in range(height):
-            ratio = (x + y) / (width + height)
-            r = int(top_color[0] * (1 - ratio) + bottom_color[0] * ratio)
-            g = int(top_color[1] * (1 - ratio) + bottom_color[1] * ratio)
-            b = int(top_color[2] * (1 - ratio) + bottom_color[2] * ratio)
-            surface.set_at((x, y), (r, g, b))
+    """Optimized gradient using rects"""
+    gradient_rect = pygame.Rect(0, 0, surface.get_width(), surface.get_height())
+    pygame.draw.rect(
+        surface,
+        top_color,
+        gradient_rect
+    )
+    steps = 100
+    for i in range(steps):
+        ratio = i / steps
+        blended_color = (
+            int(top_color[0] * (1 - ratio) + bottom_color[0] * ratio),
+            int(top_color[1] * (1 - ratio) + bottom_color[1] * ratio),
+            int(top_color[2] * (1 - ratio) + bottom_color[2] * ratio)
+        )
+        rect = pygame.Rect(0, int(i * surface.get_height() / steps), surface.get_width(), int(surface.get_height() / steps))
+        pygame.draw.rect(surface, blended_color, rect)
 
 # --------------------------
 # Game Flow Utilities

@@ -48,6 +48,109 @@ def charting_menu(screen):
 
         pygame.display.flip()
         clock.tick(FPS)
+        
+def song_select_menu(screen):
+    """Styled mode selection menu with animated background"""
+    menu_running = True
+    clock = pygame.time.Clock()
+    title_font = pygame.font.Font(UI["title_font"], 72)
+    button_font = pygame.font.Font(UI["body_font"], 36)
+    
+    # Pre-render gradient background
+    bg_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+    draw_gradient_background(bg_surface, MENU_BACKGROUND[0], MENU_BACKGROUND[1])
+
+    # Animated elements
+    parallax_layers = [
+        {"speed": 0.2, "stars": [Vector2(random.randint(0, SCREEN_WIDTH), random.randint(0, SCREEN_HEIGHT)) for _ in range(50)]},
+        {"speed": 0.5, "stars": [Vector2(random.randint(0, SCREEN_WIDTH), random.randint(0, SCREEN_HEIGHT)) for _ in range(100)]}
+    ]
+    particles = []
+    particle_timer = 0
+
+    # Button definitions
+    buttons = [
+        {"rect": pygame.Rect(0, 0, *UI["button_size"]), "text": "Infinite Mode", "action": "infinite"},
+        {"rect": pygame.Rect(0, 0, *UI["button_size"]), "text": "Back", "action": "back"}
+    ]
+    for i, btn in enumerate(buttons):
+        btn["rect"].center = (SCREEN_WIDTH//2, SCREEN_HEIGHT//2 - 60 + i * 140)
+
+    while menu_running:
+        dt = clock.tick(FPS) * 0.001
+        mouse_pos = pygame.mouse.get_pos()
+        
+        # Animate background
+        screen.blit(bg_surface, (0, 0))
+        
+        # Draw parallax stars
+        for layer in parallax_layers:
+            for star in layer["stars"]:
+                star.x = (star.x + layer["speed"] * dt * 60) % SCREEN_WIDTH
+                size = 2 if layer["speed"] == 0.2 else 1
+                pygame.draw.circle(screen, (255, 255, 255, 50), star, size)
+
+        # Update particles
+        particle_timer += dt
+        if particle_timer > 0.1:
+            particle_timer = 0
+            particles.append({
+                "pos": Vector2(random.randint(0, SCREEN_WIDTH), SCREEN_HEIGHT + 20),
+                "vel": Vector2(random.uniform(-0.5, 0.5), random.uniform(-3, -2)),
+                "size": random.randint(8, 12),
+                "color": random.choice(UI["particle_colors"])
+            })
+        particles = [p for p in particles if p["pos"].y > -20]
+        for p in particles:
+            p["pos"] += p["vel"] * dt * 60
+            pygame.draw.circle(screen, p["color"], p["pos"], p["size"])
+
+        # Draw glass panel
+        glass_rect = pygame.Rect(SCREEN_WIDTH//2 - 300, 100, 600, SCREEN_HEIGHT - 200)
+        glass_surface = pygame.Surface(glass_rect.size, pygame.SRCALPHA)
+        pygame.draw.rect(glass_surface, UI["glass_color"], glass_surface.get_rect(), border_radius=20)
+        screen.blit(glass_surface, glass_rect.topleft)
+
+        # Draw title
+        title_text = title_font.render("Select Mode", True, (255, 255, 255))
+        title_rect = title_text.get_rect(center=(SCREEN_WIDTH//2, 150))
+        screen.blit(title_text, title_rect)
+
+        # Draw buttons
+        for btn in buttons:
+            hovered = btn["rect"].collidepoint(mouse_pos)
+            color = UI["secondary_color"] if hovered else UI["accent_color"]
+            
+            # Button shadow
+            shadow_surface = pygame.Surface(btn["rect"].size, pygame.SRCALPHA)
+            pygame.draw.rect(shadow_surface, (0, 0, 0, 50 if hovered else 30), 
+                           shadow_surface.get_rect(), border_radius=UI["button_radius"])
+            screen.blit(shadow_surface, (btn["rect"].x - 4, btn["rect"].y + 4))
+            
+            # Button body
+            pygame.draw.rect(screen, color, btn["rect"], border_radius=UI["button_radius"])
+            
+            # Button text
+            text_surf = button_font.render(btn["text"], True, (255, 255, 255))
+            text_rect = text_surf.get_rect(center=btn["rect"].center)
+            screen.blit(text_surf, text_rect)
+
+        # Event handling
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                for btn in buttons:
+                    if btn["rect"].collidepoint(event.pos):
+                        if btn["action"] == "infinite":
+                            return "infinite"
+                        elif btn["action"] == "back":
+                            return "back"
+
+        pygame.display.flip()
+
+    return "back"
 
 def main_menu(screen):
     """Modern main menu with parallax and animated elements"""
@@ -156,6 +259,7 @@ def main_menu(screen):
                     if btn_rect.collidepoint(mouse_pos):
                         if option["action"] == "play":
                             menu_running = False
+                            return "play"
                         elif option["action"] == "charting":
                             charting_menu(screen)
                         elif option["action"] == "exit":
@@ -168,3 +272,5 @@ def main_menu(screen):
         screen.blit(credits, (20, SCREEN_HEIGHT - 40))
 
         pygame.display.flip()
+    
+    return "exit"
