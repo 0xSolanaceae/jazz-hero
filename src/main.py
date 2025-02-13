@@ -274,7 +274,7 @@ def game():
                     running = False
 
         if not paused:
-            new_notes = note_generator.generate_notes(current_time)
+            new_notes = note_generator.generate_notes(current_time, notes)
             notes.extend(new_notes)
 
             # Rush mode decay logic
