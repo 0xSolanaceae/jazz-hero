@@ -76,6 +76,11 @@ def song_select_menu(screen):
     for i, btn in enumerate(buttons):
         btn["rect"].center = (SCREEN_WIDTH//2, SCREEN_HEIGHT//2 - 60 + i * 140)
 
+    # Play background music if not already playing
+    if not pygame.mixer.music.get_busy():
+        pygame.mixer.music.load('assets/audio/menu_music.mp3')
+        pygame.mixer.music.play(-1)  # Loop indefinitely
+
     while menu_running:
         dt = clock.tick(FPS) * 0.001
         mouse_pos = pygame.mouse.get_pos()
@@ -175,6 +180,11 @@ def main_menu(screen):
     particles = []
     particle_timer = 0
 
+    # Play background music if not already playing
+    if not pygame.mixer.music.get_busy():
+        pygame.mixer.music.load('assets/audio/menu_music.mp3')
+        pygame.mixer.music.play(-1)  # Loop indefinitely
+
     while menu_running:
         dt = clock.tick(FPS) * 0.001
         mouse_pos = pygame.mouse.get_pos()
@@ -261,7 +271,10 @@ def main_menu(screen):
                             menu_running = False
                             return "play"
                         elif option["action"] == "charting":
+                            pygame.mixer.music.stop()  # Stop music when switching to charting menu
                             charting_menu(screen)
+                            pygame.mixer.music.load('assets/audio/menu_music.mp3')  # Restart music when returning from charting menu
+                            pygame.mixer.music.play(-1)
                         elif option["action"] == "exit":
                             pygame.quit()
                             sys.exit()
@@ -273,4 +286,5 @@ def main_menu(screen):
 
         pygame.display.flip()
     
+    pygame.mixer.music.stop()  # Stop music when leaving the menu
     return "exit"
