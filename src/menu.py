@@ -149,6 +149,7 @@ def song_select_menu(screen):
                 for btn in buttons:
                     if btn["rect"].collidepoint(event.pos):
                         if btn["action"] == "infinite":
+                            pygame.mixer.music.stop()  # Stop music when entering infinite mode
                             return "infinite"
                         elif btn["action"] == "back":
                             return "back"
